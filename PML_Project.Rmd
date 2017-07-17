@@ -1,0 +1,92 @@
+---
+title: "Project Reprot for Practical Machine Learning course"
+author: "Rishi BIdarkar"
+date: "July 16, 2017"
+output: html_document
+---
+# Background
+Using devices such as Jawbone Up, Nike FuelBand, and Fitbit it is now possible to collect a large amount of data about personal activity relatively inexpensively. These type of devices are part of the quantified self movement – a group of enthusiasts who take measurements about themselves regularly to improve their health, to find patterns in their behavior, or because they are tech geeks. One thing that people regularly do is quantify how much of a particular activity they do, but they rarely quantify how well they do it. In this project, your goal will be to use data from accelerometers on the belt, forearm, arm, and dumbell of 6 participants. They were asked to perform barbell lifts correctly and incorrectly in 5 different ways. More information is available from the website here: http://groupware.les.inf.puc-rio.br/har (see the section on the Weight Lifting Exercise Dataset).
+
+# Preprocessing data
+## Download the data
+Load the R packages needed for analysis and then download the training and testing data sets from the given URLs.
+```{r message=FALSE, echo=TRUE}
+# load the required packages
+library(caret); library(rpart);
+library(randomForest);
+
+# load data locally
+# Download the data locally to your machine from the given URL’s 
+training <- read.csv("~/Downloads/pml-training.csv")
+testing <- read.csv("~/Downloads/pml-testing.csv")
+```
+
+## Observations/Summary on Data
+
+After analyzing and summarizing the training data we see that the training dataset has 19622 observations and 160 variables, and the test data set contains 20 observations and also 160 variables. Here we observe a pattern of lot of NA  values in the data which will need to be cleaned before we can fit or predict a model. Also any near zero values will also not benefit the outcome of the model so eliminate them. The goal is to predict the outcome of the variable “classe" in the training set.
+
+## Data sanitization
+Based on the data pattern there are couple of things that can be done to sanitize the data, we first delete columns (predictors) of the training set that contain any missing values.
+```{r message=FALSE, echo=TRUE}
+knitr::opts_chunk$set(echo = TRUE)
+trainNew <- training[,colSums(is.na(training)) == 0]
+testNew <- testing[,colSums(is.na(testing)) == 0]
+```
+Another improvement could also be to eliminate the nearer values
+```{r message=FALSE, echo=TRUE}
+nzval <- nearZeroVar(trainNew)
+trainNew2 <- trainNew[, -nzval]
+testNew2 <- testNew[, -nzval]
+```
+At this time we see that the new set has reduced in number of columns initially from 160 now down to 59, which is a huge difference and this will also help with data computation and faster model building.
+
+After further analysis of the type of fields/features we would like to build this model with we notice that there a few fields/predictors in the data that will not add much value to the outcome of our model. These are like the serial number X, various timestamps etc. Further analysis on the model can also be done by using the varImp(rfMod) method which will specify how much of an impact does each feature have on the final model.
+
+ Remove the first 5 predictors since these variables have little predicting power for the outcome classe.
+ 
+```{r message=FALSE, echo=TRUE}
+knitr::opts_chunk$set(echo = TRUE)
+trainNewFinal <- trainNew2[,-c(1:5)]
+testNewFinal <- testNew2[,-c(1:5)]
+```
+Now the trainNewFinal and testNewFinal both have 54 columns as a result of the data cleanup. 
+
+## Training and testing  split
+In order to get out-of-sample errors, we split the cleaned training set trainNewFinal into a training set (train, 75%) for prediction and a validation set (test 25%) to compute the out-of-sample errors.
+
+```{r message=FALSE, echo=TRUE}
+trainDs <- createDataPartition(trainNewFinal$classe, p = 0.75, list = FALSE)
+train <- trainNewFinal[trainDs,]
+test <- trainNewFinal[-trainDs,]
+```
+# Algorithms
+In this project we use two algorithms to show how they behave with this data set, we have classification trees and random forests to predict the outcome.
+## Classification trees
+Here we fit an rpart model using the training set train to predict the classe
+```{r message=FALSE, echo=TRUE}
+rpartMod <- train(classe ~., method = "rpart",data= train)
+#predict outcomes using validation set
+predRpart <- predict(rpartMod, test)
+confusionMatrix(predRpart, test$classe)
+```
+You can see from the confusion matrix, the accuracy rate is 0.49 and the out of sample error is 0.5, you can see its not a great results and specifically, it fails to identify the class D (see confusion matrix above) and tends to favor most of cases to the class A. So this is not a good model for this dataset.
+
+## Random forests
+We saw that the previous rpart model does not perform very well, so we try random forest method next.
+```{r message=FALSE, echo=TRUE}
+rfMod <- train(classe ~., method = "rf",data= train)
+#predict outcomes using validation set
+predRf <- predict(rfMod, test)
+confusionMatrix(predRf, test$classe)
+```
+
+As you can see from the accuracy of the model, needless to say for this data, random forest method works better than the other model. The accuracy rate is 0.9992, the out-of-sample error rate is 0.0008. 
+One of the possible reasons for this result could be that these predictors could be very correlated. The splitting of trees at each sub level helps to make it less correlated and improves the accuracy. The down side of this algorithm is its computationally inefficient the model building took a long time in random forest when compared to r-part  and also its difficult to understand.
+
+# Final prediction on  the given test set
+We now use random forests to predict the outcome variable classe for the testing set.
+```{r message=FALSE, echo=TRUE}
+prediction <- predict(rfMod, testNewFinal)
+prediction
+
+```
