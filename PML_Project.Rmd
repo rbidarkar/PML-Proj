@@ -11,6 +11,7 @@ Using devices such as Jawbone Up, Nike FuelBand, and Fitbit it is now possib
 ## Download the data
 Load the R packages needed for analysis and then download the training and testing data sets from the given URLs.
 ```{r message=FALSE, echo=TRUE}
+knitr::opts_chunk$set(cache=TRUE)
 # load the required packages
 library(caret); library(rpart);
 library(randomForest);
@@ -30,7 +31,7 @@ Based on the data pattern there are couple of things that can be done to sanitiz
 ```{r message=FALSE, echo=TRUE}
 knitr::opts_chunk$set(echo = TRUE)
 trainNew <- training[,colSums(is.na(training)) == 0]
-testNew <- testing[,colSums(is.na(testing)) == 0]
+testNew <- testing[,colSums(is.na(training)) == 0]
 ```
 Another improvement could also be to eliminate the nearer values
 ```{r message=FALSE, echo=TRUE}
@@ -78,9 +79,10 @@ rfMod <- train(classe ~., method = "rf",data= train)
 #predict outcomes using validation set
 predRf <- predict(rfMod, test)
 confusionMatrix(predRf, test$classe)
+rfMod$finalModel
 ```
 
-As you can see from the accuracy of the model, needless to say for this data, random forest method works better than the other model. The accuracy rate is 0.9992, the out-of-sample error rate is 0.0008. 
+As you can see from the accuracy of the model, needless to say for this data, random forest method works better than the other model. The accuracy rate is 0.9984, the out-of-sample error rate is 0.24%. 
 One of the possible reasons for this result could be that these predictors could be very correlated. The splitting of trees at each sub level helps to make it less correlated and improves the accuracy. The down side of this algorithm is its computationally inefficient the model building took a long time in random forest when compared to r-part  and also its difficult to understand.
 
 # Final prediction on  the given test set
